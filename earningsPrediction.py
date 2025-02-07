@@ -2,6 +2,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 import requests
 from textblob import TextBlob
+import tweepy
 
 # Function to fetch transcript from URL
 def fetch_transcript(url):
@@ -26,8 +27,7 @@ def analyze_sentiment(text):
         return "Negative"
 
 # Function to fetch tweets for social media sentiment
-def fetch_tweets(query):
-    # Implement Twitter API to fetch tweets
+def fetch_tweets(api, query):
     tweets = tweepy.Cursor(api.search_tweets, q=query, lang="en").items(100)
     tweets_text = [tweet.text for tweet in tweets]
     return tweets_text
@@ -58,19 +58,32 @@ def generate_recommendation(sentiment, financial_data):
 # Streamlit App
 st.title("Company Earnings Transcript Analysis")
 
+# Sidebar for Twitter API credentials
+with st.sidebar:
+    consumer_key = st.text_input("Enter Consumer Key:")
+    consumer_secret = st.text_input("Enter Consumer Secret:")
+    access_token = st.text_input("Enter Access Token:")
+    access_token_secret = st.text_input("Enter Access Token Secret:")
+
 # Input for URL
 url_input = st.text_input("Enter the URL to fetch the transcript:")
 
 if st.button("Fetch and Analyze Transcript"):
     transcript_text = fetch_transcript(url_input)
     if transcript_text:
+        # Set up Twitter API
+        auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+        auth.set_access_token(access_token, access_token_secret)
+        api = tweepy.API(auth)
+
         # Sentiment Analysis
         sentiment = analyze_sentiment(transcript_text)
         st.write(f"Sentiment: {sentiment}")
 
         # Social Media Sentiment Analysis
         company_name = "Company Name"  # Replace with actual company name
-        tweets_sentiment = 0  # Implement logic to fetch and analyze tweets
+        tweets = fetch_tweets(api, company_name)
+        tweets_sentiment = sum([TextBlob(tweet).sentiment.polarity for tweet in tweets]) / len(tweets)
         st.write(f"Social Media Sentiment: {tweets_sentiment}")
 
         # Risk and Opportunity Alerts
